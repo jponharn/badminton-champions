@@ -22,15 +22,7 @@ import {
 } from 'lucide-react';
 
 // Firebase Configuration จาก Environment
-const firebaseConfig = {
-    apiKey: "AIzaSyDHFBJ-mFOq9eq5YZ6kTkdqPUOTFsScarE",
-    authDomain: "badminton-hall-of-fame.firebaseapp.com",
-    projectId: "badminton-hall-of-fame",
-    storageBucket: "badminton-hall-of-fame.firebasestorage.app",
-    messagingSenderId: "602626986182",
-    appId: "1:602626986182:web:130229150f2e1ad2a847c7",
-    measurementId: "G-J4CS6KY933"
-};
+const firebaseConfig = JSON.parse(__firebase_config);
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
