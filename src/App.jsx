@@ -22,15 +22,28 @@ import {
 } from 'lucide-react';
 
 // Firebase Configuration จาก Environment
-const firebaseConfig = {
-    apiKey: import.meta.env.apiKey,
-    authDomain: import.meta.env.authDomain,
-    projectId: import.meta.env.projectId,
-    storageBucket: import.meta.env.storageBucket,
-    messagingSenderId: import.meta.env.messagingSenderId,
-    appId: import.meta.env.appId,
-    measurementId: import.meta.env.measurementId
+const getFirebaseConfig = () => {
+  try {
+    // ตรวจสอบว่ามีตัวแปรระบบจำลอง __firebase_config หรือไม่
+    if (typeof __firebase_config !== 'undefined') {
+      return JSON.parse(__firebase_config);
+    }
+  } catch (e) {
+    console.warn("Using environment variables instead of internal config");
+  }
+
+  // หากไม่มี ให้ดึงจาก Environment Variables (สำหรับตอน Deploy จริง)
+  return {
+    apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+    authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+    projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+    storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+    messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+    appId: import.meta.env.VITE_FIREBASE_APP_ID
+  };
 };
+
+const firebaseConfig = getFirebaseConfig();
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
