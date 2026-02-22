@@ -34,12 +34,12 @@ const getFirebaseConfig = () => {
 
   // หากไม่มี ให้ดึงจาก Environment Variables (สำหรับตอน Deploy จริง)
   return {
-    apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-    authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-    projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-    storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-    messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-    appId: import.meta.env.VITE_FIREBASE_APP_ID
+    apiKey: "AIzaSyDHFBJ-mFOq9eq5YZ6kTkdqPUOTFsScarE",
+    authDomain: "badminton-hall-of-fame.firebaseapp.com",
+    projectId: "badminton-hall-of-fame",
+    storageBucket: "badminton-hall-of-fame.firebasestorage.app",
+    messagingSenderId: "602626986182",
+    appId: "1:602626986182:web:130229150f2e1ad2a847c7"
   };
 };
 
@@ -58,6 +58,7 @@ const App = () => {
   const [selectedYear, setSelectedYear] = useState('All');
   const [showMainActions, setShowMainActions] = useState(false);
   const [openMenuId, setOpenMenuId] = useState(null); // สำหรับจัดการเมนูย่อยใน History
+  const [fullscreenImg, setFullscreenImg] = useState(null); // สำหรับแสดงรูปภาพแบบเต็มจอ
   
   const [formData, setFormData] = useState({
     tournament: '',
@@ -210,6 +211,41 @@ const App = () => {
     }, {});
   }, [filteredHistory]);
 
+  // 3. Update Meta Tags for Facebook Sharing (Open Graph)
+  useEffect(() => {
+    if (!latestChampion) return;
+
+    const updateMetaTag = (property, content) => {
+      let element = document.querySelector(`meta[property="${property}"]`);
+      if (!element) {
+        element = document.createElement('meta');
+        element.setAttribute('property', property);
+        document.head.appendChild(element);
+      }
+      element.setAttribute('content', content);
+    };
+
+    const champion = latestChampion;
+    const championImage = champion.image || "https://images.unsplash.com/photo-1521537634581-0dced2fee2ef?q=80&w=1000&auto=format&fit=crop";
+    const championTitle = `${champion.winner} - ${champion.tournament}`;
+    const championDescription = `${champion.winner} ชนะเลิศ ${champion.tournament} (${champion.category}) เมื่อวันที่ ${new Date(champion.date).toLocaleDateString('th-TH')}`;
+    const pageUrl = window.location.href;
+
+    updateMetaTag('og:title', championTitle);
+    updateMetaTag('og:description', championDescription);
+    updateMetaTag('og:image', championImage);
+    updateMetaTag('og:url', pageUrl);
+    
+    // Update Twitter Card
+    const twitterImage = document.querySelector('meta[name="twitter:image"]');
+    if (twitterImage) {
+      twitterImage.setAttribute('content', championImage);
+    }
+
+    // Update page title
+    document.title = `${championTitle} | Badminton Hall of Fame`;
+  }, [latestChampion]);
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
@@ -222,7 +258,7 @@ const App = () => {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-20">
+    <div className="min-h-screen bg-slate-50 text-slate-900 pb-20 font-['Noto_Sans_Thai']">
       {/* Compact Header */}
       <header className="bg-indigo-950 text-white py-4 shadow-md sticky top-0 z-40">
         <div className="max-w-5xl mx-auto px-4 flex justify-between items-center">
@@ -357,11 +393,12 @@ const App = () => {
             </h2>
             <div className="bg-white rounded-[2.5rem] overflow-hidden shadow-xl border border-white group relative">
               <div className="md:flex">
-                <div className="md:w-1/2 relative h-64 md:h-auto overflow-hidden">
+                <div className="md:w-1/2 relative h-64 md:h-auto overflow-hidden cursor-pointer">
                   <img 
                     src={latestChampion.image || "https://images.unsplash.com/photo-1521537634581-0dced2fee2ef?q=80&w=1000&auto=format&fit=crop"} 
                     alt={latestChampion.winner}
                     className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                    onClick={() => setFullscreenImg(latestChampion.image || "https://images.unsplash.com/photo-1521537634581-0dced2fee2ef?q=80&w=1000&auto=format&fit=crop")}
                   />
                   <div className="absolute inset-0 bg-gradient-to-r from-indigo-950/10 to-transparent" />
                 </div>
@@ -464,11 +501,12 @@ const App = () => {
                           )}
                         </div>
 
-                        <div className="w-full sm:w-32 h-48 flex-shrink-0 bg-slate-50 rounded-xl overflow-hidden">
+                        <div className="w-full sm:w-32 h-48 flex-shrink-0 bg-slate-50 rounded-xl overflow-hidden cursor-pointer">
                           <img 
                             src={item.image || "https://images.unsplash.com/photo-1599474924187-334a4ae5bd3c?q=80&w=1000&auto=format&fit=crop"} 
-                            className="w-full h-full object-cover"
+                            className="w-full h-full object-cover hover:opacity-80 transition-opacity"
                             alt={item.winner}
+                            onClick={() => setFullscreenImg(item.image || "https://images.unsplash.com/photo-1599474924187-334a4ae5bd3c?q=80&w=1000&auto=format&fit=crop")}
                           />
                         </div>
                         <div className="flex-1 w-full text-center sm:text-left pr-8">
@@ -477,7 +515,7 @@ const App = () => {
                           <p className="text-slate-500 font-bold text-xs mb-1.5">{item.tournament}</p>
                           <div className="flex items-center justify-center sm:justify-start gap-1.5 text-slate-400 text-[10px] font-bold">
                             <Calendar className="w-3 h-3" />
-                            {new Date(item.date).toLocaleDateString('th-TH')}
+                            {new Date(item.date).toLocaleDateString('th-TH', { dateStyle: 'long' })}
                           </div>
                         </div>
                       </div>
@@ -489,6 +527,30 @@ const App = () => {
           </div>
         </section>
       </main>
+
+      {/* Fullscreen Image Overlay */}
+      {fullscreenImg && (
+        <div 
+          className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4 animate-in fade-in duration-200"
+          onClick={() => setFullscreenImg(null)}
+        >
+          <div className="relative max-w-4xl max-h-full flex items-center justify-center">
+            <img
+              src={fullscreenImg}
+              alt="Fullscreen view"
+              className="max-w-full max-h-[90vh] object-contain rounded-xl shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            />
+            <button
+              onClick={() => setFullscreenImg(null)}
+              className="absolute -top-12 -right-12 text-white hover:text-slate-300 transition-colors"
+              title="ปิด"
+            >
+              <X className="w-8 h-8" />
+            </button>
+          </div>
+        </div>
+      )}
 
       <footer className="mt-24 py-12 bg-slate-50 text-center border-t border-slate-200">
         <p className="text-slate-400 font-black tracking-widest uppercase text-[10px] mb-2">Badminton Hall of Fame</p>
