@@ -1,10 +1,15 @@
-export const config = {
-  runtime: 'edge',
-};
+import * as admin from 'firebase-admin';
 
-export default async function handler(req) {
+// Initialize Firebase Admin
+if (!admin.apps.length) {
+  admin.initializeApp({
+    projectId: process.env.VITE_FIREBASE_PROJECT_ID,
+  });
+}
+
+export default async function handler(req, res) {
   try {
-    const projectId = process.env.VITE_FIREBASE_PROJECT_ID;
+    const db = admin.firestore();
     const appId = 'badminton-hall-of-fame';
     
     let championData = {
@@ -14,35 +19,31 @@ export default async function handler(req) {
       image: 'https://images.unsplash.com/photo-1521537634581-0dced2fee2ef?q=80&w=1200&auto=format&fit=crop'
     };
     
-    // ดึง latest champion จาก Firestore REST API (Server-side)
+    // ดึง latest champion จาก Firestore (Server-side)
     try {
-      const firestoreUrl = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/artifacts/${appId}/public/data/champions?pageSize=1&orderBy.field.name=date&orderBy.direction=DESCENDING`;
+      const championsRef = db
+        .collection('artifacts')
+        .doc(appId)
+        .collection('public')
+        .doc('data')
+        .collection('champions');
       
-      const response = await fetch(firestoreUrl, {
-        headers: {
-          'Accept': 'application/json',
-          'User-Agent': 'Badminton-OG-Generator'
-        }
-      });
+      const snapshot = await championsRef
+        .orderBy('date', 'desc')
+        .limit(1)
+        .get();
       
-      if (response.ok) {
-        const data = await response.json();
-        console.log('Firestore response:', data);
+      if (!snapshot.empty) {
+        const doc = snapshot.docs[0].data();
         
-        if (data.documents && data.documents.length > 0) {
-          const doc = data.documents[0].fields;
-          
-          championData = {
-            winner: doc.winner?.stringValue || championData.winner,
-            tournament: doc.tournament?.stringValue || championData.tournament,
-            category: doc.category?.stringValue || '',
-            image: doc.image?.stringValue || championData.image
-          };
-          
-          console.log('Champion data fetched:', championData);
-        }
-      } else {
-        console.log('Firestore response not ok:', response.status);
+        championData = {
+          winner: doc.winner || championData.winner,
+          tournament: doc.tournament || championData.tournament,
+          category: doc.category || '',
+          image: doc.image || championData.image
+        };
+        
+        console.log('Champion data fetched:', championData);
       }
     } catch (firebaseError) {
       console.log('Firestore fetch error (using defaults):', firebaseError.message);
@@ -80,19 +81,12 @@ export default async function handler(req) {
 </body>
 </html>`;
     
-    return new Response(html, {
-      status: 200,
-      headers: {
-        'Content-Type': 'text/html; charset=utf-8',
-        'Cache-Control': 'public, max-age=3600',
-      },
-    });
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.setHeader('Cache-Control', 'public, max-age=3600');
+    res.status(200).send(html);
   } catch (error) {
     console.error('Error:', error);
-    return new Response('<!DOCTYPE html><html><head><meta name="robots" content="noindex"></head><body>Error generating preview</body></html>', {
-      status: 500,
-      headers: { 'Content-Type': 'text/html; charset=utf-8' },
-    });
+    res.status(500).send('<!DOCTYPE html><html><head><meta name="robots" content="noindex"></head><body>Error generating preview</body></html>');
   }
 }
 
