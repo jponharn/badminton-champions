@@ -264,8 +264,8 @@ const App = () => {
     const championDescription = `${champion.winner} ชนะเลิศ ${champion.tournament} (${champion.category}) เมื่อวันที่ ${new Date(champion.date).toLocaleDateString('th-TH')}`;
     const pageUrl = window.location.href;
     
-    // ใช้ /api/og endpoint - จะดึง latest champion เอง
-    const ogImageUrl = 'https://badminton-champions.vercel.app/api/og';
+    // ส่ง champion data ผ่าน query parameters ไปยัง /api/og
+    const ogImageUrl = `https://badminton-champions.vercel.app/api/og?winner=${encodeURIComponent(champion.winner)}&tournament=${encodeURIComponent(champion.tournament)}&category=${encodeURIComponent(champion.category)}&image=${encodeURIComponent(champion.image || 'https://images.unsplash.com/photo-1521537634581-0dced2fee2ef?q=80&w=1200&auto=format&fit=crop')}`;
 
     updateMetaTag('og:title', championTitle);
     updateMetaTag('og:description', championDescription);
