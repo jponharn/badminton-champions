@@ -16,6 +16,25 @@ import {
   signInWithCustomToken, 
   onAuthStateChanged 
 } from 'firebase/auth';
+
+// Cloudinary Configuration
+const CLOUDINARY_CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
+const CLOUDINARY_UPLOAD_PRESET = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
+
+const uploadToCloudinary = async (file) => {
+  const data = new FormData();
+  data.append('file', file);
+  data.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
+  data.append('folder', 'badminton-hall-of-fame');
+
+  const res = await fetch(
+    `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`,
+    { method: 'POST', body: data }
+  );
+  if (!res.ok) throw new Error('อัปโหลดรูปภาพไม่สำเร็จ');
+  const json = await res.json();
+  return json.secure_url;
+};
 import { 
   Plus, Trophy, Calendar, Trash2, Award, Clock, 
   Filter, ChevronRight, Upload, Image as ImageIcon, X, Loader2, MoreVertical, Edit2, Save
@@ -34,12 +53,12 @@ const getFirebaseConfig = () => {
 
   // หากไม่มี ให้ดึงจาก Environment Variables (สำหรับตอน Deploy จริง)
   return {
-    apiKey: "AIzaSyDHFBJ-mFOq9eq5YZ6kTkdqPUOTFsScarE",
-    authDomain: "badminton-hall-of-fame.firebaseapp.com",
-    projectId: "badminton-hall-of-fame",
-    storageBucket: "badminton-hall-of-fame.firebasestorage.app",
-    messagingSenderId: "602626986182",
-    appId: "1:602626986182:web:130229150f2e1ad2a847c7"
+    apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+    authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+    projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+    storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+    messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+    appId: import.meta.env.VITE_FIREBASE_APP_ID
   };
 };
 
@@ -59,6 +78,7 @@ const App = () => {
   const [showMainActions, setShowMainActions] = useState(false);
   const [openMenuId, setOpenMenuId] = useState(null); // สำหรับจัดการเมนูย่อยใน History
   const [fullscreenImg, setFullscreenImg] = useState(null); // สำหรับแสดงรูปภาพแบบเต็มจอ
+  const [isUploading, setIsUploading] = useState(false); // สำหรับแสดง loading ตอน upload รูป
   
   const [formData, setFormData] = useState({
     tournament: '',
@@ -113,22 +133,16 @@ const App = () => {
   }, [user]);
 
   // Logic การจัดการข้อมูล
-  const handleFileChange = (e, isEditMode = false) => {
+  const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (file) {
-      if (file.size > 800000) {
-        alert("ไฟล์รูปภาพใหญ่เกินไป โปรดเลือกรูปที่มีขนาดไม่เกิน 800KB");
+      if (file.size > 5 * 1024 * 1024) {
+        alert("ไฟล์รูปภาพใหญ่เกินไป โปรดเลือกรูปที่มีขนาดไม่เกิน 5MB");
         return;
       }
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        if (isEditMode) {
-          setFormData(prev => ({ ...prev, image: reader.result }));
-        } else {
-          setFormData(prev => ({ ...prev, image: reader.result }));
-        }
-      };
-      reader.readAsDataURL(file);
+      // เก็บ File object และ preview URL ชั่วคราว
+      const previewUrl = URL.createObjectURL(file);
+      setFormData(prev => ({ ...prev, image: previewUrl, _imageFile: file }));
     }
   };
 
@@ -137,26 +151,45 @@ const App = () => {
     if (!user || !formData.tournament || !formData.date || !formData.winner) return;
 
     try {
+      setIsUploading(true);
+      let imageUrl = formData.image;
+
+      // ถ้ามีไฟล์ใหม่ ให้อัปโหลดขึ้น Cloudinary ก่อน
+      if (formData._imageFile) {
+        imageUrl = await uploadToCloudinary(formData._imageFile);
+      }
+
+      const dataToSave = {
+        tournament: formData.tournament,
+        date: formData.date,
+        winner: formData.winner,
+        category: formData.category,
+        image: imageUrl,
+      };
+
       const championsRef = collection(db, 'artifacts', appId, 'public', 'data', 'champions');
       if (isEditing) {
         await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'champions', isEditing), {
-          ...formData,
+          ...dataToSave,
           updatedAt: serverTimestamp()
         });
         setIsEditing(null);
       } else {
         await addDoc(championsRef, {
-          ...formData,
+          ...dataToSave,
           createdAt: serverTimestamp(),
           createdBy: user.uid
         });
       }
 
-      setFormData({ tournament: '', date: '', winner: '', image: '', category: 'Super 500' });
+      setFormData({ tournament: '', date: '', winner: '', image: '', category: 'Super 500', _imageFile: null });
       setIsAdding(false);
       setShowMainActions(false);
     } catch (error) {
       console.error("Error processing document: ", error);
+      alert("เกิดข้อผิดพลาดในการบันทึกข้อมูล: " + error.message);
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -165,8 +198,9 @@ const App = () => {
       tournament: item.tournament,
       date: item.date,
       winner: item.winner,
-      image: item.image,
-      category: item.category
+      image: item.image,       // URL จาก Storage หรือ URL เดิม
+      category: item.category,
+      _imageFile: null          // ยังไม่มีไฟล์ใหม่
     });
     setIsEditing(item.id);
     setIsAdding(true);
@@ -280,7 +314,7 @@ const App = () => {
                 <button 
                   onClick={() => {
                     setIsEditing(null);
-                    setFormData({ tournament: '', date: '', winner: '', image: '', category: 'Super 500' });
+                    setFormData({ tournament: '', date: '', winner: '', image: '', category: 'Super 500', _imageFile: null });
                     setIsAdding(true);
                   }}
                   className="w-full text-left px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 flex items-center gap-2"
@@ -357,7 +391,7 @@ const App = () => {
                       <div className="relative inline-block">
                         <img src={formData.image} alt="Preview" className="h-40 w-auto rounded-xl shadow-lg" />
                         <button 
-                          type="button" onClick={() => setFormData({...formData, image: ''})}
+                          type="button" onClick={() => setFormData({...formData, image: '', _imageFile: null})}
                           className="absolute -top-2 -right-2 bg-red-500 text-white p-1.5 rounded-full shadow-lg"
                         >
                           <X className="w-3 h-3" />
@@ -374,9 +408,16 @@ const App = () => {
                 </div>
 
                 <div className="md:col-span-2 mt-4">
-                  <button type="submit" className="w-full bg-indigo-600 text-white py-3 rounded-xl font-black shadow-lg hover:bg-indigo-700 transition-all flex items-center justify-center gap-2">
-                    <Save className="w-5 h-5" />
-                    {isEditing ? 'บันทึกการแก้ไข' : 'ยืนยันการเพิ่มแชมป์'}
+                  <button 
+                    type="submit" 
+                    disabled={isUploading}
+                    className="w-full bg-indigo-600 text-white py-3 rounded-xl font-black shadow-lg hover:bg-indigo-700 transition-all flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    {isUploading ? (
+                      <><Loader2 className="w-5 h-5 animate-spin" /> กำลังอัปโหลดรูปภาพ...</>
+                    ) : (
+                      <><Save className="w-5 h-5" />{isEditing ? 'บันทึกการแก้ไข' : 'ยืนยันการเพิ่มแชมป์'}</>
+                    )}
                   </button>
                 </div>
               </form>
