@@ -37,7 +37,7 @@ const uploadToCloudinary = async (file) => {
 };
 import { 
   Plus, Trophy, Calendar, Trash2, Award, Clock, 
-  Filter, ChevronRight, Upload, Image as ImageIcon, X, Loader2, MoreVertical, Edit2, Save, Share2, Facebook, MessageCircle
+  Filter, ChevronRight, Upload, Image as ImageIcon, X, Loader2, MoreVertical, Edit2, Save
 } from 'lucide-react';
 
 // Firebase Configuration จาก Environment
@@ -77,7 +77,6 @@ const App = () => {
   const [selectedYear, setSelectedYear] = useState('All');
   const [showMainActions, setShowMainActions] = useState(false);
   const [openMenuId, setOpenMenuId] = useState(null); // สำหรับจัดการเมนูย่อยใน History
-  const [shareMenuOpen, setShareMenuOpen] = useState(false);
   const [fullscreenImg, setFullscreenImg] = useState(null); // สำหรับแสดงรูปภาพแบบเต็มจอ
   const [isUploading, setIsUploading] = useState(false); // สำหรับแสดง loading ตอน upload รูป
   
@@ -186,7 +185,6 @@ const App = () => {
       setFormData({ tournament: '', date: '', winner: '', image: '', category: 'Super 500', _imageFile: null });
       setIsAdding(false);
       setShowMainActions(false);
-      setShareMenuOpen(false);
     } catch (error) {
       console.error("Error processing document: ", error);
       alert("เกิดข้อผิดพลาดในการบันทึกข้อมูล: " + error.message);
@@ -206,7 +204,6 @@ const App = () => {
     });
     setIsEditing(item.id);
     setIsAdding(true);
-    setShareMenuOpen(false);
   };
 
   const deleteChampion = async (id) => {
@@ -216,40 +213,6 @@ const App = () => {
       setOpenMenuId(null);
     } catch (error) {
       console.error("Error deleting document: ", error);
-    }
-  };
-
-  // Share Handler
-  const handleShare = (platform) => {
-    if (!latestChampion) return;
-    
-    const url = window.location.href;
-    const title = `${latestChampion.winner} - ${latestChampion.tournament}`;
-    const description = `${latestChampion.winner} ชนะเลิศ ${latestChampion.tournament} (${latestChampion.category})`;
-    
-    let shareUrl = '';
-    
-    switch(platform) {
-      case 'facebook':
-        shareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`;
-        break;
-      case 'twitter':
-        shareUrl = `https://twitter.com/intent/tweet?url=${encodeURIComponent(url)}&text=${encodeURIComponent(title)}`;
-        break;
-      case 'line':
-        shareUrl = `https://social-plugins.line.me/lineit/share?url=${encodeURIComponent(url)}`;
-        break;
-      case 'whatsapp':
-        shareUrl = `https://wa.me/?text=${encodeURIComponent(description + ' ' + url)}`;
-        break;
-      case 'copy':
-        navigator.clipboard.writeText(url);
-        alert('Copy URL สำเร็จ!');
-        return;
-    }
-    
-    if (shareUrl) {
-      window.open(shareUrl, 'share', 'width=600,height=400');
     }
   };
 
@@ -381,7 +344,7 @@ const App = () => {
                 <h2 className="text-xl font-black text-indigo-950 flex items-center gap-2">
                   <Award className="text-indigo-600" /> {isEditing ? 'แก้ไขข้อมูลแชมป์' : 'บันทึกทำเนียบแชมป์'}
                 </h2>
-                <button onClick={() => { setIsAdding(false); setIsEditing(null); setShareMenuOpen(false); }} className="p-2 hover:bg-slate-100 rounded-full">
+                <button onClick={() => { setIsAdding(false); setIsEditing(null); }} className="p-2 hover:bg-slate-100 rounded-full">
                   <X className="w-5 h-5 text-slate-400" />
                 </button>
               </div>
@@ -483,60 +446,13 @@ const App = () => {
                   <div className="absolute inset-0 bg-gradient-to-r from-indigo-950/10 to-transparent" />
                 </div>
                 <div className="md:w-1/2 p-8 md:p-10 flex flex-col justify-center bg-white relative">
-                  <div className="absolute top-6 right-6 flex gap-2">
-                    <button 
-                      onClick={() => startEditing(latestChampion)}
-                      className="p-2 bg-slate-50 hover:bg-indigo-50 text-slate-400 hover:text-indigo-600 rounded-full transition-all"
-                      title="แก้ไขข้อมูล"
-                    >
-                      <Edit2 className="w-5 h-5" />
-                    </button>
-                    
-                    <div className="relative">
-                      <button 
-                        onClick={() => setShareMenuOpen(!shareMenuOpen)}
-                        className="p-2 bg-indigo-100 hover:bg-indigo-200 text-indigo-600 rounded-full transition-all font-bold"
-                        title="แชร์ข้อมูล"
-                      >
-                        <Share2 className="w-5 h-5" />
-                      </button>
-                      
-                      {shareMenuOpen && (
-                        <div className="absolute right-0 top-12 flex flex-col bg-white rounded-xl shadow-xl border border-slate-100 py-1 z-30 min-w-max">
-                          <button 
-                            onClick={() => { handleShare('facebook'); setShareMenuOpen(false); }}
-                            className="px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 flex items-center gap-2 border-b border-slate-50"
-                          >
-                            <span className="text-lg">f</span> Facebook
-                          </button>
-                          <button 
-                            onClick={() => { handleShare('twitter'); setShareMenuOpen(false); }}
-                            className="px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 flex items-center gap-2 border-b border-slate-50"
-                          >
-                            <span className="text-lg">𝕏</span> Twitter
-                          </button>
-                          <button 
-                            onClick={() => { handleShare('line'); setShareMenuOpen(false); }}
-                            className="px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 flex items-center gap-2 border-b border-slate-50"
-                          >
-                            <span className="text-lg">L</span> LINE
-                          </button>
-                          <button 
-                            onClick={() => { handleShare('whatsapp'); setShareMenuOpen(false); }}
-                            className="px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 flex items-center gap-2 border-b border-slate-50"
-                          >
-                            <span className="text-lg">W</span> WhatsApp
-                          </button>
-                          <button 
-                            onClick={() => { handleShare('copy'); setShareMenuOpen(false); }}
-                            className="px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 flex items-center gap-2"
-                          >
-                            <span className="text-lg">📋</span> Copy Link
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  </div>
+                  <button 
+                    onClick={() => startEditing(latestChampion)}
+                    className="absolute top-6 right-6 p-2 bg-slate-50 hover:bg-indigo-50 text-slate-400 hover:text-indigo-600 rounded-full transition-all"
+                    title="แก้ไขข้อมูล"
+                  >
+                    <Edit2 className="w-5 h-5" />
+                  </button>
                   
                   <span className="bg-yellow-400 text-indigo-950 px-3 py-1 rounded-full text-[9px] font-black tracking-widest uppercase w-fit mb-3">
                     {latestChampion.category}
