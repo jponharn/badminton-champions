@@ -1,0 +1,19 @@
+{
+  "rewrites": [
+    {
+      "source": "/",
+      "destination": "/api/og.js",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": ".*(facebookexternalhit|Twitterbot|WhatsApp|LinkedInBot|Slurp|Googlebot|Bingbot|Slotobot|Validator\\.nu|curl|wget|Applebot|Duckbot|okhttp|MJ12bot|Sogoou|YandexBot|Exabot|YetiBot|MojeekBot|BotTester|AhrefsBot|Yeti).*"
+        }
+      ]
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}
