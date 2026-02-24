@@ -265,7 +265,7 @@ const App = () => {
     const pageUrl = window.location.href;
     
     // Server (/api/og) จะดึง latest champion เอง ผ่าน Firestore
-    const ogImageUrl = 'https://badminton-champions.vercel.app/api/og';
+    const ogImageUrl = 'https://res.cloudinary.com/dkbjtfqcf/image/upload/v1771942866/badminton-hall-of-fame/vfz9ife46tohemg22r2x.jpg';
 
     updateMetaTag('og:title', championTitle);
     updateMetaTag('og:description', championDescription);
