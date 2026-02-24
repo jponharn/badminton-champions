@@ -1,70 +1,103 @@
-import { ImageResponse } from '@vercel/og';
-
 export const config = {
   runtime: 'edge',
 };
 
 export default async function handler(req) {
   try {
-    // ดึงข้อมูลจาก query parameters หรือ default
-    const url = new URL(req.url);
-    const winner = url.searchParams.get('winner') || 'Latest Champion';
-    const tournament = url.searchParams.get('tournament') || 'Badminton Championship';
-    const category = url.searchParams.get('category') || '';
+    const projectId = process.env.VITE_FIREBASE_PROJECT_ID;
+    const appId = 'badminton-hall-of-fame';
     
-    const championTitle = tournament ? `${winner} - ${tournament}` : winner;
-    const championDescription = category ? `${winner} ชนะเลิศ ${tournament} (${category})` : `${winner} ชนะเลิศ ${tournament}`;
+    let championData = {
+      winner: 'Badminton Hall of Fame',
+      tournament: 'Latest Champion',
+      category: '',
+      image: 'https://images.unsplash.com/photo-1521537634581-0dced2fee2ef?q=80&w=1200&auto=format&fit=crop'
+    };
     
-    return new ImageResponse(
-      (
-        <div
-          style={{
-            display: 'flex',
-            fontSize: 60,
-            color: '#ffffff',
-            background: 'linear-gradient(135deg, #4f46e5 0%, #312e81 100%)',
-            width: '100%',
-            height: '100%',
-            padding: '50px',
-            textAlign: 'center',
-            justifyContent: 'center',
-            alignItems: 'center',
-            fontFamily: '"Noto Sans Thai", system-ui',
-          }}
-        >
-          <div
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '20px',
-            }}
-          >
-            <div style={{ fontSize: 40, fontWeight: 'bold', color: '#fbbf24' }}>
-              🏆 BADMINTON CHAMPIONS 🏆
-            </div>
-            <div style={{ fontSize: 48, fontWeight: 'bold', color: '#ffffff', lineHeight: 1.2 }}>
-              {championTitle}
-            </div>
-            <div style={{ fontSize: 28, color: '#e5e7eb', fontWeight: '500' }}>
-              {championDescription}
-            </div>
-          </div>
-        </div>
-      ),
-      {
-        width: 1200,
-        height: 630,
-        fonts: [
-          {
-            name: 'Noto Sans Thai',
-            data: await fetch('https://fonts.gstatic.com/s/notosansthai/v17/iPfuCZEb-fN_EML2NAKj5vvEOOl0n1-XNy-fk0aDfpgf-Ry87xJhARr6JpglCdDvRoRLKb8YcvEVK1HfRe7aZ7VjdvQ.0.woff2').then(res => res.arrayBuffer()),
-            style: 'normal',
-          }
-        ]
+    // Try to fetch latest champion from Firestore REST API
+    try {
+      const firestoreUrl = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/artifacts/${appId}/public/data/champions?pageSize=1&orderBy.field.name=date&orderBy.direction=DESCENDING`;
+      
+      const response = await fetch(firestoreUrl, {
+        headers: {
+          'Accept': 'application/json',
+          'User-Agent': 'Badminton-OG-Generator'
+        }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        
+        if (data.documents && data.documents.length > 0) {
+          const doc = data.documents[0].fields;
+          
+          championData = {
+            winner: doc.winner?.stringValue || championData.winner,
+            tournament: doc.tournament?.stringValue || championData.tournament,
+            category: doc.category?.stringValue || '',
+            image: doc.image?.stringValue || championData.image
+          };
+        }
       }
-    );
+    } catch (firebaseError) {
+      console.log('Firestore fetch warning (using defaults):', firebaseError.message);
+    }
+    
+    const championTitle = `${championData.winner} - ${championData.tournament}`;
+    const championDescription = championData.category 
+      ? `${championData.winner} ชนะเลิศ ${championData.tournament} (${championData.category})`
+      : `${championData.winner} ชนะเลิศ ${championData.tournament}`;
+    
+    const html = `<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta property="og:title" content="${escapeHtml(championTitle)}" />
+  <meta property="og:description" content="${escapeHtml(championDescription)}" />
+  <meta property="og:image" content="${championData.image}" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:url" content="https://badminton-champions.vercel.app" />
+  <meta property="og:type" content="website" />
+  <meta property="og:locale" content="th_TH" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="${escapeHtml(championTitle)}" />
+  <meta name="twitter:description" content="${escapeHtml(championDescription)}" />
+  <meta name="twitter:image" content="${championData.image}" />
+  <title>${escapeHtml(championTitle)}</title>
+  <meta http-equiv="refresh" content="0;url=/" />
+</head>
+<body>
+  <p>Redirecting to home page...</p>
+  <script>
+    window.location.href = '/';
+  </script>
+</body>
+</html>`;
+    
+    return new Response(html, {
+      status: 200,
+      headers: {
+        'Content-Type': 'text/html; charset=utf-8',
+        'Cache-Control': 'public, max-age=3600', // Cache for 1 hour
+      },
+    });
   } catch (error) {
     console.error('Error:', error);
-    return new Response('Failed to generate image', { status: 500 });
+    return new Response('<!DOCTYPE html><html><head><meta name="robots" content="noindex"></head><body>Error generating preview</body></html>', {
+      status: 500,
+      headers: { 'Content-Type': 'text/html; charset=utf-8' },
+    });
   }
+}
+
+function escapeHtml(text) {
+  const map = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#039;'
+  };
+  return String(text).replace(/[&<>"']/g, m => map[m]);
 }
