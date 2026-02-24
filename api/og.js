@@ -1,4 +1,4 @@
-const { ImageResponse } = require('@vercel/og');
+import { ImageResponse } from '@vercel/og';
 
 export const config = {
   runtime: 'edge',
@@ -6,33 +6,14 @@ export const config = {
 
 export default async function handler(req) {
   try {
-    // ดึง latest champion จาก Firestore REST API
-    const projectId = process.env.VITE_FIREBASE_PROJECT_ID;
-    const appId = 'badminton-hall-of-fame';
+    // ดึงข้อมูลจาก query parameters หรือ default
+    const url = new URL(req.url);
+    const winner = url.searchParams.get('winner') || 'Latest Champion';
+    const tournament = url.searchParams.get('tournament') || 'Badminton Championship';
+    const category = url.searchParams.get('category') || '';
     
-    const firestoreUrl = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/artifacts/${appId}/public/data/champions?orderBy.field.name=date&orderBy.direction=DESCENDING&pageSize=1`;
-    
-    const firestoreRes = await fetch(firestoreUrl);
-    const firestoreData = await firestoreRes.json();
-    
-    let championTitle = "Badminton Hall of Fame";
-    let championDescription = "ทำเนียบแชมป์แบดมินตัน";
-    let championImage = "https://images.unsplash.com/photo-1521537634581-0dced2fee2ef?q=80&w=1200&auto=format&fit=crop";
-    
-    if (firestoreData.documents && firestoreData.documents.length > 0) {
-      const doc = firestoreData.documents[0];
-      const fields = doc.fields;
-      
-      const winner = fields.winner?.stringValue || '';
-      const tournament = fields.tournament?.stringValue || '';
-      const category = fields.category?.stringValue || '';
-      const date = fields.date?.stringValue || '';
-      const image = fields.image?.stringValue || championImage;
-      
-      championTitle = `${winner} - ${tournament}`;
-      championDescription = `${winner} ชนะเลิศ ${tournament} (${category})`;
-      championImage = image || championImage;
-    }
+    const championTitle = tournament ? `${winner} - ${tournament}` : winner;
+    const championDescription = category ? `${winner} ชนะเลิศ ${tournament} (${category})` : `${winner} ชนะเลิศ ${tournament}`;
     
     return new ImageResponse(
       (
@@ -48,7 +29,7 @@ export default async function handler(req) {
             textAlign: 'center',
             justifyContent: 'center',
             alignItems: 'center',
-            fontFamily: 'Arial, sans-serif',
+            fontFamily: '"Noto Sans Thai", system-ui',
           }}
         >
           <div
@@ -61,10 +42,10 @@ export default async function handler(req) {
             <div style={{ fontSize: 40, fontWeight: 'bold', color: '#fbbf24' }}>
               🏆 BADMINTON CHAMPIONS 🏆
             </div>
-            <div style={{ fontSize: 50, fontWeight: 'bold' }}>
+            <div style={{ fontSize: 48, fontWeight: 'bold', color: '#ffffff', lineHeight: 1.2 }}>
               {championTitle}
             </div>
-            <div style={{ fontSize: 30, color: '#e5e7eb' }}>
+            <div style={{ fontSize: 28, color: '#e5e7eb', fontWeight: '500' }}>
               {championDescription}
             </div>
           </div>
@@ -73,6 +54,13 @@ export default async function handler(req) {
       {
         width: 1200,
         height: 630,
+        fonts: [
+          {
+            name: 'Noto Sans Thai',
+            data: await fetch('https://fonts.gstatic.com/s/notosansthai/v17/iPfuCZEb-fN_EML2NAKj5vvEOOl0n1-XNy-fk0aDfpgf-Ry87xJhARr6JpglCdDvRoRLKb8YcvEVK1HfRe7aZ7VjdvQ.0.woff2').then(res => res.arrayBuffer()),
+            style: 'normal',
+          }
+        ]
       }
     );
   } catch (error) {

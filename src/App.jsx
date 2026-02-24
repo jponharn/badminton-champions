@@ -260,20 +260,22 @@ const App = () => {
     };
 
     const champion = latestChampion;
-    const championImage = champion.image || "https://images.unsplash.com/photo-1521537634581-0dced2fee2ef?q=80&w=1000&auto=format&fit=crop";
     const championTitle = `${champion.winner} - ${champion.tournament}`;
     const championDescription = `${champion.winner} ชนะเลิศ ${champion.tournament} (${champion.category}) เมื่อวันที่ ${new Date(champion.date).toLocaleDateString('th-TH')}`;
     const pageUrl = window.location.href;
+    
+    // สร้าง OG image URL ด้วย query parameters
+    const ogImageUrl = `https://badminton-champions.vercel.app/api/og?winner=${encodeURIComponent(champion.winner)}&tournament=${encodeURIComponent(champion.tournament)}&category=${encodeURIComponent(champion.category)}`;
 
     updateMetaTag('og:title', championTitle);
     updateMetaTag('og:description', championDescription);
-    updateMetaTag('og:image', championImage);
+    updateMetaTag('og:image', ogImageUrl);
     updateMetaTag('og:url', pageUrl);
     
     // Update Twitter Card
     const twitterImage = document.querySelector('meta[name="twitter:image"]');
     if (twitterImage) {
-      twitterImage.setAttribute('content', championImage);
+      twitterImage.setAttribute('content', ogImageUrl);
     }
 
     // Update page title
